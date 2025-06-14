@@ -1,0 +1,15 @@
+data
+.git
+results
+storage
+LICENSE
+NOTICE
+docker-compose.yml
+.gitignore
+README.md
+.env
+nohup.out
+.Rproj.user
+s305n-p301s-snrnaseq.Rproj
+R
+cache
