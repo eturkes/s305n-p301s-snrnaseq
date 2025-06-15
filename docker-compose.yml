@@ -17,13 +17,13 @@ version: "3"
 
 services:
   all:
-    image: eturkes/s305n-p301s-snrnaseq:R4.5.1v1
+    image: eturkes/s305n-p301s-snrnaseq:R4.5.1v2
     volumes:
       - ".:/home/rstudio/s305n-p301s-snrnaseq:rw"
     command: Rscript -e "source('/home/rstudio/s305n-p301s-snrnaseq/R/run_all.R')"
 
   rstudio:
-    image: eturkes/s305n-p301s-snrnaseq:R4.5.1v1
+    image: eturkes/s305n-p301s-snrnaseq:R4.5.1v2
     volumes:
       - ".:/home/rstudio/s305n-p301s-snrnaseq:rw"
     ports:
