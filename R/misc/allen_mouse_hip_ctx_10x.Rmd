@@ -1,0 +1,184 @@
+---
+title: "Allen Mouse Hippocampus/Cortex 10x Genomics"
+author:
+  - name: "Emir Turkes"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+link-citations: true
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    theme: lumen
+    highlight: haddock
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(
+    inputFile, encoding = encoding,
+    output_file = file.path(
+      "..", "..", "results", "misc", "allen_mouse_hip_ctx_10x.html"
+    ))})
+---
+
+<style type="text/css">
+body {font-size: 16px;}
+h1.title {font-size: 35px;}
+h1 {font-size: 24px;}
+h2 {font-size: 22px;}
+h3 {font-size: 20px;}
+.toc-content {padding-left: 0px; padding-right: 0px;}
+div.tocify {width: 100%;}
+.tocify-subheader .tocify-item {
+  font-size: 0.95em; padding-left: 25px; text-indent: 0;
+}
+.tocify-subheader .tocify-subheader .tocify-item {
+  font-size: 0.95em; padding-left: 35px; text-indent: 0;
+}
+div.main-container {max-width: none; width: 100%;}
+</style>
+
+*This file is a part of [s301s-p301s-snrnaseq](https://github.com/eturkes/s301s-p301s-snrnaseq).*
+
+The table of contents in the top left is clickable and can be used to quickly navigate the document.
+To toggle the visibility of code, use the `CODE` toggles at the top right of chunks.
+The toggle at the start of the document controls the visibility of all chunks.
+
+```{r}
+# Copyright 2025 Emir Turkes, Naoto Watamura, Martha Foiani,
+# UK DRI at UCL
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Load required packages, suppressing startup messages.
+# -----------------------------------------------------
+library(conflicted)
+packages <- c(
+  "Seurat", "Matrix", "parallelly", "DT", "data.table", "rhdf5", "ggplot2",
+  "ggplot2", "dplyr", "ggrepel", "viridis"
+)
+invisible(
+  suppressPackageStartupMessages(
+    lapply(packages, library, character.only = TRUE)
+  )
+)
+# -----------------------------------------------------
+
+# Define global settings.
+# -----------------------
+knitr::opts_chunk$set(fig.width = 10, fig.height = 7, dpi = 300)
+setDTthreads(availableCores())
+plan("sequential")
+# -----------------------
+
+# Define functions.
+# -----------------
+source(file.path("..", "utils.R"))
+# -----------------
+
+# Useful variables.
+# -----------------
+data_dir <- file.path("..", "..", "data", "allen_mouse_hip_ctx_10x")
+cache_dir <- file.path("..", "..", "cache", "misc")
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
+# -----------------
+```
+
+# Prep
+
+```{r}
+rds <- file.path(cache_dir, "allen_mouse_hip_ctx_10x.rds")
+if (file.exists(rds)) {
+  data <- readRDS(rds)
+} else {
+
+  genes   <- h5read(
+    file.path(data_dir, "expression_matrix.hdf5"), "/data/gene"
+  )
+  samples <- h5read(
+    file.path(data_dir, "expression_matrix.hdf5"), "/data/samples"
+  )
+
+  meta <- as.data.frame(
+    fread(file.path(data_dir, "metadata.csv"), verbose = FALSE)
+  )
+  rownames(meta) <- meta$sample_name
+
+  use_samples  <- intersect(rownames(meta), samples)
+  read_samples <- sort(match(use_samples, samples))
+
+  data <- as(
+    t(
+      h5read(
+        file.path(data_dir, "expression_matrix.hdf5"), "/data/counts",
+        index = list(read_samples, NULL)
+      )
+    ),
+    "dgCMatrix"
+  )
+
+  rownames(data) <- as.character(genes)
+  colnames(data) <- as.character(samples)[read_samples]
+
+  data <- CreateSeuratObject(
+    data, meta.data = as.data.frame(meta[colnames(data), ])
+  )
+  rm(meta, genes, samples, use_samples, read_samples)
+
+  gc()
+  data <- SCTransform(data, conserve.memory = TRUE, verbose = FALSE)
+  data <- RunPCA(data, verbose = FALSE)
+  data <- RunUMAP(data, dims = 1:32, verbose = FALSE)
+
+  add_df <- data.frame(Embeddings(data, "umap"))
+  names(add_df) <- paste0("umap", seq(ncol(add_df)))
+  data$umap1 <- add_df$umap1
+  data$umap2 <- add_df$umap2
+
+  saveRDS(data, rds)
+}
+```
+
+# Visualisation
+
+```{r, fig.width = 20, fig.height = 14}
+ElbowPlot(data, ndims = 50) + geom_vline(xintercept = 32)
+
+red_dim_plot(
+  data, x = "umap1", y = "umap2", color = "class_label", type = "cat"
+) + ggtitle("class_label")
+red_dim_plot(
+  data, x = "umap1", y = "umap2", color = "subclass_label", type = "cat"
+) + ggtitle("subclass_label")
+red_dim_plot(
+  data, x = "umap1", y = "umap2", color = "external_donor_name_label"
+) + ggtitle("external_donor_name_label")
+red_dim_plot(
+  data, x = "umap1", y = "umap2", color = "nFeature_SCT", type = "cont"
+) + ggtitle("nFeature_SCT")
+red_dim_plot(
+  data, x = "umap1", y = "umap2", color = "nCount_SCT", type = "cont"
+) + ggtitle("nCount_SCT")
+```
+
+# References
+
+This is the concluding section of the document, where we output the `sessionInfo`, and create a bibliography for works cited.
+
+```{r}
+sessionInfo()
+```
