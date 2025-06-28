@@ -127,8 +127,7 @@ if (file.exists(rds)) {
         file.path(data_dir, "expression_matrix.hdf5"), "/data/counts",
         index = list(read_samples, NULL)
       )
-    ),
-    "dgCMatrix"
+    )
   )
 
   rownames(data) <- as.character(genes)
