@@ -423,11 +423,10 @@ parallel_plan <- function(object, parallel_override = NULL) {
     )
     # ----------------
 
-    # Distribute free memory (minus 10 GiB) across available cores.
-    # -------------------------------------------------------------
-    # mem <- mem - 10 * 1024 ^ 3
+    # Distribute free memory across available cores.
+    # ----------------------------------------------
     mem <- mem / availableCores()
-    # -------------------------------------------------------------
+    # ----------------------------------------------
 
     # Enable parallelization if `object` can fit in `future.globals.maxSize`.
     # -----------------------------------------------------------------------
